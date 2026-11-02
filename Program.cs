@@ -11,8 +11,13 @@ if (builder.Environment.IsDevelopment())
 else
 {
     builder.Services.AddDbContext<MyDatabaseContext>(options =>
-        options.UseSqlServer(builder.Configuration.GetConnectionString("AZURE_SQL_CONNECTIONSTRING")));
+        options.UseSqlServer(builder.Configuration.GetConnectionString("AZURE_SQL_DEFAULTCONNECTOR_CONNECTIONSTRING")));
 }
+// else
+// {
+//     builder.Services.AddDbContext<MyDatabaseContext>(options =>
+//         options.UseSqlServer(builder.Configuration.GetConnectionString("AZURE_SQL_CONNECTIONSTRING")));
+// }
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
