@@ -20,7 +20,7 @@ variables:
   slotName: 'staging'
 
   stagingUrl: 'https://msdocs-core-sql-anmiros-staging-ece4ahcfa8hffrc9.canadacentral-01.azurewebsites.net/'
-  productionUrl: 'https://anmiros.pp.ua/'
+  productionUrl: 'https://www.anmiros.pp.ua/'
 
 stages:
 
