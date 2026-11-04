@@ -5,17 +5,24 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UserSecretsId>4a92d050-dcd1-4646-a1de-106ec04c1f02</UserSecretsId>
+    <DefaultItemExcludes>$(DefaultItemExcludes);DotNetCoreSqlDb.Tests/**</DefaultItemExcludes>
   </PropertyGroup>
 
   <ItemGroup>
     <!-- Include a migrations bundle when one is generated for deployment. -->
     <Content Include="migrationsbundle" CopyToPublishDirectory="PreserveNewest" Exclude="$(DefaultItemExcludes);$(DefaultExcludesInProjectFolder)" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.10" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="10.0.10">
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.14" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="10.0.14">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.Extensions.Logging.AzureAppServices" Version="10.0.10" />
+    <PackageReference Include="System.Security.Cryptography.Pkcs" Version="9.0.21" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Exclude the test project source files from the web application. -->
+    <Compile Remove="DotNetCoreSqlDb.Tests/**/*.cs" />
   </ItemGroup>
 
 </Project>
