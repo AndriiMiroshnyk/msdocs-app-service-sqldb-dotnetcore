@@ -1,0 +1,218 @@
+# Azure DevOps CI/CD - ASP.NET Core + Azure SQL
+
+trigger:
+  branches:
+    include:
+      - starter-no-infra
+
+pr: none
+
+pool:
+  name: 'wsl-agents'
+
+variables:
+  buildConfiguration: 'Release'
+  dotnetVersion: '10.x'
+
+  azureServiceConnection: 'azure-appservice-wif'
+  resourceGroupName: 'msdocs-core-sql-anmiros_group'
+  webAppName: 'msdocs-core-sql-anmiros'
+  slotName: 'staging'
+
+  stagingUrl: 'https://msdocs-core-sql-anmiros-staging-ece4ahcfa8hffrc9.canadacentral-01.azurewebsites.net/'
+  productionUrl: 'https://anmiros.pp.ua/'
+
+stages:
+
+# Stage 1: Build, Test and Publish
+- stage: Build
+  displayName: 'Build and Test'
+  jobs:
+  - job: BuildApp
+    displayName: 'Build ASP.NET Core application'
+    steps:
+
+    - checkout: self
+
+    - task: UseDotNet@2
+      displayName: 'Install .NET 10 SDK'
+      inputs:
+        packageType: 'sdk'
+        version: '$(dotnetVersion)'
+
+    - script: |
+        dotnet restore DotNetCoreSqlDb.Tests/DotNetCoreSqlDb.Tests.csproj
+      displayName: 'Restore dependencies'
+
+    - script: |
+        dotnet build DotNetCoreSqlDb.csproj \
+          --configuration $(buildConfiguration) \
+          --no-restore
+      displayName: 'Build application'
+
+    - script: |
+        dotnet test DotNetCoreSqlDb.Tests/DotNetCoreSqlDb.Tests.csproj \
+          --configuration $(buildConfiguration) \
+          --no-restore \
+          --results-directory "$(Agent.TempDirectory)/test-results" \
+          -- \
+          --report-trx \
+          --report-trx-filename test-results.trx
+      displayName: 'Run automated tests'
+
+    - task: PublishTestResults@2
+      displayName: 'Publish test results'
+      condition: succeededOrFailed()
+      inputs:
+        testResultsFormat: 'VSTest'
+        testResultsFiles: '*.trx'
+        searchFolder: '$(Agent.TempDirectory)/test-results'
+        failTaskOnFailedTests: true
+        failTaskOnMissingResultsFile: true
+
+    - script: |
+        mkdir -p "$(Build.ArtifactStagingDirectory)/app"
+
+        dotnet publish DotNetCoreSqlDb.csproj \
+          --configuration $(buildConfiguration) \
+          --no-restore \
+          --output "$(Build.ArtifactStagingDirectory)/app"
+      displayName: 'Publish application'
+
+    - script: |
+        dotnet tool install dotnet-ef \
+          --tool-path "$(Agent.TempDirectory)/ef-tools" \
+          --version '10.*'
+
+        mkdir -p "$(Build.ArtifactStagingDirectory)/migrations"
+
+        "$(Agent.TempDirectory)/ef-tools/dotnet-ef" \
+          migrations bundle \
+          --project DotNetCoreSqlDb.csproj \
+          --startup-project DotNetCoreSqlDb.csproj \
+          --self-contained \
+          --target-runtime linux-x64 \
+          --output "$(Build.ArtifactStagingDirectory)/migrations/efbundle"
+      displayName: 'Generate EF Core migrations bundle'
+      env:
+        ASPNETCORE_ENVIRONMENT: 'Production'
+
+    - script: |
+        cd "$(Build.ArtifactStagingDirectory)/app"
+        zip -qr "$(Build.ArtifactStagingDirectory)/app.zip" .
+      displayName: 'Create deployment ZIP'
+
+    - task: PublishPipelineArtifact@1
+      displayName: 'Publish build artifacts'
+      inputs:
+        targetPath: '$(Build.ArtifactStagingDirectory)'
+        artifact: 'drop'
+        publishLocation: 'pipeline'
+
+# Stage 2: Deploy to Staging
+- stage: DeployStaging
+  displayName: 'Deploy to Staging'
+  dependsOn: Build
+  condition: succeeded()
+  jobs:
+  - job: DeployApp
+    displayName: 'Deploy and verify staging'
+    steps:
+
+    - checkout: none
+
+    - task: DownloadPipelineArtifact@2
+      displayName: 'Download build artifacts'
+      inputs:
+        buildType: 'current'
+        artifactName: 'drop'
+        targetPath: '$(Pipeline.Workspace)/drop'
+
+    - task: AzureWebApp@1
+      displayName: 'Deploy application to staging'
+      inputs:
+        azureSubscription: '$(azureServiceConnection)'
+        appType: 'webAppLinux'
+        appName: '$(webAppName)'
+        deployToSlotOrASE: true
+        resourceGroupName: '$(resourceGroupName)'
+        slotName: '$(slotName)'
+        package: '$(Pipeline.Workspace)/drop/app.zip'
+
+    - bash: |
+        set -euo pipefail
+
+        for attempt in {1..12}; do
+          status=$(curl \
+            --silent \
+            --show-error \
+            --max-time 15 \
+            --output /dev/null \
+            --write-out '%{http_code}' \
+            "$(stagingUrl)") || status="000"
+
+          echo "Attempt $attempt: HTTP $status"
+
+          if [ "$status" = "200" ]; then
+            echo "Staging smoke test passed"
+            exit 0
+          fi
+
+          if [ "$attempt" -lt 12 ]; then
+            sleep 5
+          fi
+        done
+
+        echo "Staging smoke test failed"
+        exit 1
+      displayName: 'Staging smoke test'
+
+# Stage 3: Promote to Production
+- stage: DeployProduction
+  displayName: 'Promote to Production'
+  dependsOn: DeployStaging
+  condition: succeeded()
+  jobs:
+  - job: PromoteApp
+    displayName: 'Swap slots and verify production'
+    steps:
+
+    - checkout: none
+
+    - task: AzureAppServiceManage@0
+      displayName: 'Swap staging with production'
+      inputs:
+        azureSubscription: '$(azureServiceConnection)'
+        Action: 'Swap Slots'
+        WebAppName: '$(webAppName)'
+        ResourceGroupName: '$(resourceGroupName)'
+        SourceSlot: '$(slotName)'
+        SwapWithProduction: true
+
+    - bash: |
+        set -euo pipefail
+
+        for attempt in {1..12}; do
+          status=$(curl \
+            --silent \
+            --show-error \
+            --max-time 15 \
+            --output /dev/null \
+            --write-out '%{http_code}' \
+            "$(productionUrl)") || status="000"
+
+          echo "Attempt $attempt: HTTP $status"
+
+          if [ "$status" = "200" ]; then
+            echo "Production smoke test passed"
+            exit 0
+          fi
+
+          if [ "$attempt" -lt 12 ]; then
+            sleep 5
+          fi
+        done
+
+        echo "Production smoke test failed"
+        exit 1
+      displayName: 'Production smoke test'
