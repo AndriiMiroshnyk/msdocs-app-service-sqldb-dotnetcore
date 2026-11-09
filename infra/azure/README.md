@@ -260,6 +260,24 @@ The optional sixth argument selects the slot; it defaults to `staging`. The scri
 temporarily enables public SQL access and restores private-only access on exit.
 Connection settings remain managed by Terraform.
 
+## Application deployment
+
+[azure-pipelines.yml](../../azure-pipelines.yml) builds and tests the application,
+deploys to staging, and runs database migrations through
+[run-migrations.sh](../../scripts/run-migrations.sh). After successful checks, it
+swaps staging into production and verifies the application.
+
+Before running the pipeline:
+
+- Complete [database access setup](#database-access) for both managed identities.
+- Use a Linux agent with Azure CLI >= 2.90 in the configured pool.
+- Set `azureServiceConnection`, `resourceGroupName`, `webAppName` and `slotName`
+  in YAML. Authorize the service connection for the pipeline and grant its identity
+  deployment access, including SCM access and slot swaps.
+
+After deployment, verify the application over HTTPS and create a Todo item to
+confirm database access and persistence.
+
 ## DNS and certificates
 
 The project uses a custom domain in the free

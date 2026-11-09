@@ -24,6 +24,10 @@ This is an ASP.NET Core application that you can use to follow along with the tu
 
 See [infra/azure/README.md](infra/azure/README.md) for Terraform deployment instructions.
 
+## Application deployment with Azure Pipelines
+
+See [Application deployment](infra/azure/README.md#application-deployment) for pipeline setup and verification.
+
 > [!IMPORTANT]
 > This tutorial sample is intentionally anonymous. All visitors share the same Todo list, so don't enter personal, confidential, or sensitive information.
 

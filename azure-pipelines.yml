@@ -1,6 +1,7 @@
 # Azure DevOps CI/CD - ASP.NET Core + Azure SQL
 
 trigger:
+  batch: true
   branches:
     include:
       - starter-no-infra
@@ -9,6 +10,8 @@ pr: none
 
 pool:
   name: 'Self-hosted Agents'
+  demands:
+    - Agent.OS -equals Linux
 
 variables:
   buildConfiguration: 'Release'
@@ -18,9 +21,7 @@ variables:
   resourceGroupName: 'msdocs-core-sql-anmiros_group'
   webAppName: 'msdocs-core-sql-anmiros'
   slotName: 'staging'
-
-  stagingUrl: 'https://msdocs-core-sql-anmiros-staging-ece4ahcfa8hffrc9.canadacentral-01.azurewebsites.net/'
-  productionUrl: 'https://www.anmiros.pp.ua/'
+  migrationTimeoutSeconds: '600'
 
 stages:
 
@@ -71,6 +72,7 @@ stages:
         failTaskOnMissingResultsFile: true
 
     - script: |
+        set -euo pipefail
         mkdir -p "$(Build.ArtifactStagingDirectory)/app"
 
         dotnet publish DotNetCoreSqlDb.csproj \
@@ -80,27 +82,41 @@ stages:
       displayName: 'Publish application'
 
     - script: |
+        set -euo pipefail
         dotnet tool install dotnet-ef \
           --tool-path "$(Agent.TempDirectory)/ef-tools" \
           --version '10.*'
-
-        mkdir -p "$(Build.ArtifactStagingDirectory)/migrations"
 
         "$(Agent.TempDirectory)/ef-tools/dotnet-ef" \
           migrations bundle \
           --project DotNetCoreSqlDb.csproj \
           --startup-project DotNetCoreSqlDb.csproj \
+          --configuration $(buildConfiguration) \
           --self-contained \
           --target-runtime linux-x64 \
-          --output "$(Build.ArtifactStagingDirectory)/migrations/efbundle"
+          --output "$(Build.ArtifactStagingDirectory)/app/efbundle"
       displayName: 'Generate EF Core migrations bundle'
       env:
         ASPNETCORE_ENVIRONMENT: 'Production'
 
     - script: |
+        set -euo pipefail
         cd "$(Build.ArtifactStagingDirectory)/app"
-        zip -qr "$(Build.ArtifactStagingDirectory)/app.zip" .
+        test -s efbundle
+        chmod +x efbundle
+        mkdir -p "$(Build.ArtifactStagingDirectory)/scripts"
+        cp "$(Build.SourcesDirectory)/scripts/run-migrations.sh" \
+          "$(Build.ArtifactStagingDirectory)/scripts/"
+      displayName: 'Prepare migrations bundle for deployment'
+
+    - task: ArchiveFiles@2
       displayName: 'Create deployment ZIP'
+      inputs:
+        rootFolderOrFile: '$(Build.ArtifactStagingDirectory)/app'
+        includeRootFolder: false
+        archiveType: 'zip'
+        archiveFile: '$(Build.ArtifactStagingDirectory)/app.zip'
+        replaceExistingArchive: true
 
     - task: PublishPipelineArtifact@1
       displayName: 'Publish build artifacts'
@@ -113,10 +129,11 @@ stages:
 - stage: DeployStaging
   displayName: 'Deploy to Staging'
   dependsOn: Build
-  condition: succeeded()
+  condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
   jobs:
   - job: DeployApp
     displayName: 'Deploy and verify staging'
+    timeoutInMinutes: 30
     steps:
 
     - checkout: none
@@ -139,21 +156,39 @@ stages:
         slotName: '$(slotName)'
         package: '$(Pipeline.Workspace)/drop/app.zip'
 
+    # Database users must be provisioned before migrations run.
+    - task: AzureCLI@2
+      displayName: 'Run and verify database migrations inside staging'
+      timeoutInMinutes: 15
+      inputs:
+        azureSubscription: '$(azureServiceConnection)'
+        scriptType: 'bash'
+        scriptLocation: 'scriptPath'
+        scriptPath: '$(Pipeline.Workspace)/drop/scripts/run-migrations.sh'
+        arguments: >-
+          "$(resourceGroupName)"
+          "$(webAppName)"
+          "$(slotName)"
+          "$(Pipeline.Workspace)/drop/app/efbundle"
+          "$(migrationTimeoutSeconds)"
+
     - bash: |
         set -euo pipefail
+        response_file=$(mktemp)
+        trap 'rm -f "$response_file"' EXIT
 
         for attempt in {1..12}; do
           status=$(curl \
             --silent \
             --show-error \
             --max-time 15 \
-            --output /dev/null \
+            --output "$response_file" \
             --write-out '%{http_code}' \
             "$(stagingUrl)") || status="000"
 
           echo "Attempt $attempt: HTTP $status"
 
-          if [ "$status" = "200" ]; then
+          if [ "$status" = "200" ] && grep -q 'Add Todo' "$response_file"; then
             echo "Staging smoke test passed"
             exit 0
           fi
@@ -189,30 +224,43 @@ stages:
         SourceSlot: '$(slotName)'
         SwapWithProduction: true
 
-    - bash: |
-        set -euo pipefail
-
-        for attempt in {1..12}; do
-          status=$(curl \
-            --silent \
-            --show-error \
-            --max-time 15 \
-            --output /dev/null \
-            --write-out '%{http_code}' \
-            "$(productionUrl)") || status="000"
-
-          echo "Attempt $attempt: HTTP $status"
-
-          if [ "$status" = "200" ]; then
-            echo "Production smoke test passed"
-            exit 0
-          fi
-
-          if [ "$attempt" -lt 12 ]; then
-            sleep 5
-          fi
-        done
-
-        echo "Production smoke test failed"
-        exit 1
+    - task: AzureCLI@2
       displayName: 'Production smoke test'
+      inputs:
+        azureSubscription: '$(azureServiceConnection)'
+        scriptType: 'bash'
+        scriptLocation: 'inlineScript'
+        inlineScript: |
+          set -euo pipefail
+          response_file=$(mktemp)
+          trap 'rm -f "$response_file"' EXIT
+
+          production_hostname=$(az webapp show \
+            --resource-group "$(resourceGroupName)" \
+            --name "$(webAppName)" \
+            --query defaultHostName --output tsv)
+          test -n "$production_hostname"
+
+          for attempt in {1..12}; do
+            status=$(curl \
+              --silent \
+              --show-error \
+              --max-time 15 \
+              --output "$response_file" \
+              --write-out '%{http_code}' \
+              "https://$production_hostname/") || status="000"
+
+            echo "Attempt $attempt: HTTP $status"
+
+            if [ "$status" = "200" ] && grep -q 'Add Todo' "$response_file"; then
+              echo "Production smoke test passed"
+              exit 0
+            fi
+
+            if [ "$attempt" -lt 12 ]; then
+              sleep 5
+            fi
+          done
+
+          echo "Production smoke test failed"
+          exit 1
