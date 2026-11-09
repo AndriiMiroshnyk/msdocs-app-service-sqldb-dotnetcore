@@ -270,10 +270,16 @@ swaps staging into production and verifies the application.
 Before running the pipeline:
 
 - Complete [database access setup](#database-access) for both managed identities.
-- Use a Linux agent with Azure CLI >= 2.90 in the configured pool.
+- Install Azure CLI >= 2.90 on the Linux self-hosted agent and make `az` available
+  on its `PATH`. For WSL, install it in the same distribution as the agent. Restart
+  the agent after installation. See [Azure CLI task prerequisites](https://learn.microsoft.com/en-us/azure/devops/pipelines/tasks/reference/azure-cli-v2?view=azure-pipelines#prerequisites).
 - Set `azureServiceConnection`, `resourceGroupName`, `webAppName` and `slotName`
-  in YAML. Authorize the service connection for the pipeline and grant its identity
-  deployment access, including SCM access and slot swaps.
+  in YAML and authorize the workload identity federation service connection for
+  the pipeline. The Azure CLI task authenticates through this connection.
+- Grant the service connection's identity the Azure RBAC
+  [Website Contributor](https://learn.microsoft.com/en-us/azure/role-based-access-control/built-in-roles/web-and-mobile#website-contributor)
+  role on the application resource group for deployment, SCM access and slot swaps.
+  Recreate this role assignment if the resource group is deleted and recreated.
 
 After deployment, verify the application over HTTPS and create a Todo item to
 confirm database access and persistence.
