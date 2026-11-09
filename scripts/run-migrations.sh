@@ -45,8 +45,22 @@ printf '%s\n' "\$result" > "$remote_exit.tmp"
 mv "$remote_exit.tmp" "$remote_exit"
 EOF
 )
-az webapp exec "${target[@]}" --instance "$instance" --mode execute \
-  --target app --shell /bin/sh --shell-command "$remote_command" --output none
+# Retry only an explicit busy rejection, before the command is accepted.
+for attempt in {1..4}; do
+  if exec_output=$(az webapp exec "${target[@]}" --instance "$instance" --mode execute \
+    --target app --shell /bin/sh --shell-command "$remote_command" --output none 2>&1); then
+    printf '%s\n' "$exec_output"
+    break
+  fi
+  printf '%s\n' "$exec_output" >&2
+  if [ "$attempt" -eq 4 ] ||
+    ! grep -Fq 'The web app is busy. Please try again later.' <<< "$exec_output" ||
+    ! grep -Fq 'Command request was not accepted on 1 of 1 instance(s).' <<< "$exec_output"; then
+    exit 1
+  fi
+  echo "App instance is busy; retrying submission in 15 seconds ($attempt/4)."
+  sleep 15
+done
 
 # Submission only confirms acceptance. Poll this run's actual exit code.
 token=$(az account get-access-token --resource https://appservice.azure.com \
