@@ -238,6 +238,28 @@ settings. Database-user provisioning and application deployment are separate fro
 infrastructure provisioning. There is no SQL password or database connection secret
 to store or rotate. Key Vault continues to hold the TLS certificate.
 
+## Database access
+
+After a fresh deployment, run [sql.sh](../../scripts/sql.sh) to create database users
+and permissions for the production and staging managed identities. Sign in as the
+configured SQL Entra administrator. The runner requires unixODBC and Microsoft ODBC
+Driver 18 for SQL Server.
+
+From `infra/azure`, replace the placeholders and run:
+
+```bash
+bash ../../scripts/sql.sh \
+  "<subscription-id>" \
+  "<resource-group>" \
+  "<app-name>" \
+  "<sql-server-name>" \
+  "<database-name>"
+```
+
+The optional sixth argument selects the slot; it defaults to `staging`. The script
+temporarily enables public SQL access and restores private-only access on exit.
+Connection settings remain managed by Terraform.
+
 ## DNS and certificates
 
 The project uses a custom domain in the free
