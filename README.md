@@ -20,6 +20,10 @@ description: "A sample application you can use to follow along with Tutorial: De
 This is an ASP.NET Core application that you can use to follow along with the tutorial at 
 [Tutorial: Deploy an ASP.NET Core and Azure SQL Database app to Azure App Service](https://learn.microsoft.com/azure/app-service/tutorial-dotnetcore-sqldb-app) or by using the [Azure Developer CLI (azd)](https://learn.microsoft.com/azure/developer/azure-developer-cli/overview) according to the instructions below.
 
+## Terraform deployment
+
+See [infra/azure/README.md](infra/azure/README.md) for Terraform deployment instructions.
+
 > [!IMPORTANT]
 > This tutorial sample is intentionally anonymous. All visitors share the same Todo list, so don't enter personal, confidential, or sensitive information.
 

@@ -1,0 +1,35 @@
+# Replace placeholders with your deployment values.
+subscription_id     = "YOUR_AZURE_SUBSCRIPTION_ID"
+resource_group_name = "todo-example-rg"
+web_app_name        = "todo-example-web"
+service_plan_name   = "todo-example-plan"
+
+sql_server_name   = "todo-example-sql"
+sql_database_name = "todo"
+
+key_vault_name = "todo-example-kv"
+
+application_insights_name = "todo-example-insights"
+action_group_name         = "Application Insights Smart Detection"
+
+traffic_manager_name          = "todo-example-tm"
+traffic_manager_endpoint_name = "primary"
+certificate_name              = "todo-example-tls"
+
+sql_entra_admin_login_name = "YOUR_ENTRA_ADMIN_DISPLAY_NAME"
+sql_entra_admin_object_id  = "00000000-0000-0000-0000-000000000000"
+
+operator_ipv4_cidrs = ["YOUR_PUBLIC_IPV4/32"]
+
+# Supply the PFX password through TF_VAR_certificate_password.
+custom_domain = {
+  zone_name      = "example.com"
+  record_name    = "www"
+  enable_binding = true
+
+  tls_certificate = {
+    key_vault_certificate_name      = "example-com"
+    pfx_file_path                   = "/absolute/path/to/certificate.pfx"
+    app_service_principal_object_id = "APP_SERVICE_RESOURCE_PROVIDER_OBJECT_ID"
+  }
+}
