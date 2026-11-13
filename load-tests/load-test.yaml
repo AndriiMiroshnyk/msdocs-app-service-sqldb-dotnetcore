@@ -1,0 +1,17 @@
+version: v0.1
+testId: todo-crud-smoke
+displayName: Todo database workload
+description: List, create and delete Todo items through the web application.
+testType: Locust
+testPlan: locustfile.py
+engineInstances: 1
+properties:
+  userPropertyFile: locust.conf
+failureCriteria:
+  - percentage(error) > 1
+  - p95(response_time_ms) > 1000
+  - create-todo: count(requests) < 1
+  - delete-todo: count(requests) < 1
+autoStop:
+  errorPercentage: 50
+  timeWindow: 60

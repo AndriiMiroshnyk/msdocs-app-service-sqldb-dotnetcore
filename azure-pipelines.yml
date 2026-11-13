@@ -22,6 +22,7 @@ variables:
   webAppName: 'msdocs-core-sql-anmiros'
   slotName: 'staging'
   migrationTimeoutSeconds: '600'
+  loadTestingResourceName: 'todo-load-testing'
 
 stages:
 
@@ -264,3 +265,30 @@ stages:
 
           echo "Production smoke test failed"
           exit 1
+
+- stage: LoadTest
+  displayName: 'Load test production'
+  dependsOn: DeployProduction
+  condition: succeeded()
+  jobs:
+  - job: TestPerformance
+    displayName: 'Run Todo database workload'
+    timeoutInMinutes: 30
+    steps:
+    - checkout: self
+
+    - task: AzureLoadTest@1
+      displayName: 'Run Azure Load Testing'
+      inputs:
+        azureSubscription: '$(azureServiceConnection)'
+        resourceGroup: '$(resourceGroupName)'
+        loadTestResource: '$(loadTestingResourceName)'
+        loadTestConfigFile: 'load-tests/load-test.yaml'
+        loadTestRunName: 'Todo workload - $(Build.BuildNumber)'
+        env: |
+          [{"name":"TARGET_HOST","value":"$(loadTestHost)"}]
+
+    - publish: '$(System.DefaultWorkingDirectory)/loadTest'
+      displayName: 'Publish load test results'
+      condition: succeededOrFailed()
+      artifact: load-test-results
