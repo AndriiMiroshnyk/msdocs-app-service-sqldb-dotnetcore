@@ -12,5 +12,8 @@ provider "azurerm" {
       purge_soft_deleted_certificates_on_destroy = false
       recover_soft_deleted_certificates          = false
     }
+    resource_group {
+      prevent_deletion_if_contains_resources = false
+    }
   }
 }
