@@ -1,0 +1,683 @@
+{
+  "version": "Notebook/1.0",
+  "items": [
+    {
+      "type": 9,
+      "content": {
+        "version": "KqlParameterItem/1.0",
+        "parameters": [
+          {
+            "id": "edcc4fc1-6c37-4dfc-a52c-5424256e55c8",
+            "version": "KqlParameterItem/1.0",
+            "name": "TimeRange",
+            "type": 4,
+            "typeSettings": {
+              "selectableValues": [
+                {
+                  "durationMs": 3600000
+                },
+                {
+                  "durationMs": 86400000
+                },
+                {
+                  "durationMs": 604800000
+                }
+              ]
+            },
+            "timeContext": {
+              "durationMs": 86400000
+            },
+            "value": {
+              "durationMs": 86400000
+            }
+          },
+          {
+            "id": "1f477159-ada2-4f41-b03b-4038ace0b896",
+            "version": "KqlParameterItem/1.0",
+            "name": "AppRole",
+            "type": 1,
+            "timeContext": {
+              "durationMs": 86400000
+            },
+            "value": "example-app"
+          }
+        ],
+        "style": "pills",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces"
+      },
+      "name": "parameters - 0"
+    },
+    {
+      "type": 1,
+      "content": {
+        "json": "## Application health"
+      },
+      "name": "text - 1"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "union withsource=TableName AppRequests, AppDependencies, AppExceptions\r\n| where AppRoleName == \"{AppRole}\"\r\n| extend Weight = tolong(coalesce(ItemCount, 1))\r\n| summarize\r\n    FailedRequests = sumif(Weight,\r\n        TableName == \"AppRequests\" and Success == false),\r\n    Exceptions = sumif(Weight,\r\n        TableName == \"AppExceptions\"),\r\n    DependencyFailures = sumif(Weight,\r\n        TableName == \"AppDependencies\" and Success == false),\r\n    LastTelemetry = max(TimeGenerated)\r\n    | extend Counters = bag_pack(\r\n    \"Failed requests\", FailedRequests,\r\n    \"Exceptions\", Exceptions,\r\n    \"Dependency failures\", DependencyFailures)\r\n| mv-expand kind=array Counters\r\n| project\r\n    Signal = tostring(Counters[0]),\r\n    Value = tolong(Counters[1]),\r\n    LastTelemetry",
+        "size": 0,
+        "title": "Application failures and telemetry freshness",
+        "timeContextFromParameter": "TimeRange",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "crossComponentResources": [
+          "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/example-rg/providers/Microsoft.OperationalInsights/workspaces/example-app-logs"
+        ],
+        "visualization": "tiles",
+        "sortBy": [],
+        "tileSettings": {
+          "titleContent": {
+            "columnMatch": "Signal",
+            "formatter": 1
+          },
+          "leftContent": {
+            "columnMatch": "Value",
+            "formatter": 12,
+            "formatOptions": {
+              "palette": "auto"
+            },
+            "numberFormat": {
+              "unit": 17,
+              "options": {
+                "maximumSignificantDigits": 3,
+                "maximumFractionDigits": 2
+              }
+            }
+          },
+          "secondaryContent": {
+            "columnMatch": "LastTelemetry"
+          },
+          "showBorder": false
+        }
+      },
+      "name": "query - 2"
+    },
+    {
+      "type": 1,
+      "content": {
+        "json": "## App Service"
+      },
+      "name": "text - 24"
+    },
+    {
+      "type": 10,
+      "content": {
+        "chartId": "workbook28c985a0-c989-4392-8255-f80a3b4c3901",
+        "version": "MetricsItem/2.0",
+        "size": 0,
+        "chartType": 2,
+        "resourceType": "microsoft.web/sites",
+        "metricScope": 0,
+        "resourceIds": [
+          "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/example-rg/providers/Microsoft.Web/sites/example-app"
+        ],
+        "timeContextFromParameter": "TimeRange",
+        "timeContext": {
+          "durationMs": 86400000
+        },
+        "metrics": [
+          {
+            "namespace": "microsoft.web/sites",
+            "metric": "microsoft.web/sites--Requests",
+            "aggregation": 1
+          }
+        ],
+        "title": "Request volume",
+        "gridSettings": {
+          "rowLimit": 10000
+        }
+      },
+      "name": "metric - 3"
+    },
+    {
+      "type": 10,
+      "content": {
+        "chartId": "workbook37415ce1-a2a5-44af-92c3-0cdd87c4ee40",
+        "version": "MetricsItem/2.0",
+        "size": 0,
+        "chartType": 2,
+        "resourceType": "microsoft.web/sites",
+        "metricScope": 0,
+        "resourceIds": [
+          "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/example-rg/providers/Microsoft.Web/sites/example-app"
+        ],
+        "timeContextFromParameter": "TimeRange",
+        "timeContext": {
+          "durationMs": 86400000
+        },
+        "metrics": [
+          {
+            "namespace": "microsoft.web/sites",
+            "metric": "microsoft.web/sites--Http4xx",
+            "aggregation": 1
+          },
+          {
+            "namespace": "microsoft.web/sites",
+            "metric": "microsoft.web/sites--Http5xx",
+            "aggregation": 1
+          }
+        ],
+        "title": "HTTP errors",
+        "gridSettings": {
+          "rowLimit": 10000
+        }
+      },
+      "name": "metric - 4"
+    },
+    {
+      "type": 10,
+      "content": {
+        "chartId": "workbookeb49ec94-4a24-4e14-8ba0-67ac1f862fe4",
+        "version": "MetricsItem/2.0",
+        "size": 0,
+        "chartType": 2,
+        "resourceType": "microsoft.web/sites",
+        "metricScope": 0,
+        "resourceIds": [
+          "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/example-rg/providers/Microsoft.Web/sites/example-app"
+        ],
+        "timeContextFromParameter": "TimeRange",
+        "timeContext": {
+          "durationMs": 86400000
+        },
+        "metrics": [
+          {
+            "namespace": "microsoft.web/sites",
+            "metric": "microsoft.web/sites--HttpResponseTime",
+            "aggregation": 4
+          }
+        ],
+        "title": "Response time",
+        "gridSettings": {
+          "rowLimit": 10000
+        }
+      },
+      "name": "metric - 5"
+    },
+    {
+      "type": 10,
+      "content": {
+        "chartId": "workbookd935dbbe-8014-4b89-8b50-acffedfa36bf",
+        "version": "MetricsItem/2.0",
+        "size": 0,
+        "chartType": 2,
+        "resourceType": "microsoft.web/sites",
+        "metricScope": 0,
+        "resourceIds": [
+          "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/example-rg/providers/Microsoft.Web/sites/example-app"
+        ],
+        "timeContextFromParameter": "TimeRange",
+        "timeContext": {
+          "durationMs": 86400000
+        },
+        "metrics": [
+          {
+            "namespace": "microsoft.web/sites",
+            "metric": "microsoft.web/sites--CpuTime",
+            "aggregation": 1
+          }
+        ],
+        "title": "Application CPU",
+        "gridSettings": {
+          "rowLimit": 10000
+        }
+      },
+      "name": "metric - 6"
+    },
+    {
+      "type": 10,
+      "content": {
+        "chartId": "workbook9cf287e6-8673-4072-b3e7-bbe3c81cd15a",
+        "version": "MetricsItem/2.0",
+        "size": 0,
+        "chartType": 2,
+        "resourceType": "microsoft.web/sites",
+        "metricScope": 0,
+        "resourceIds": [
+          "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/example-rg/providers/Microsoft.Web/sites/example-app"
+        ],
+        "timeContextFromParameter": "TimeRange",
+        "timeContext": {
+          "durationMs": 86400000
+        },
+        "metrics": [
+          {
+            "namespace": "microsoft.web/sites",
+            "metric": "microsoft.web/sites--MemoryWorkingSet",
+            "aggregation": 4
+          }
+        ],
+        "title": "Application memory",
+        "gridSettings": {
+          "rowLimit": 10000
+        }
+      },
+      "name": "metric - 7"
+    },
+    {
+      "type": 10,
+      "content": {
+        "chartId": "workbookf2ce1221-36aa-42b8-8bdb-4c2ec2f7e010",
+        "version": "MetricsItem/2.0",
+        "size": 0,
+        "chartType": 2,
+        "resourceType": "microsoft.web/sites",
+        "metricScope": 0,
+        "resourceIds": [
+          "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/example-rg/providers/Microsoft.Web/sites/example-app"
+        ],
+        "timeContextFromParameter": "TimeRange",
+        "timeContext": {
+          "durationMs": 86400000
+        },
+        "metrics": [
+          {
+            "namespace": "microsoft.web/sites",
+            "metric": "microsoft.web/sites--HealthCheckStatus",
+            "aggregation": 4,
+            "splitBy": [
+              "Instance"
+            ]
+          }
+        ],
+        "title": "Instance health",
+        "gridSettings": {
+          "rowLimit": 10000
+        }
+      },
+      "name": "metric - 8"
+    },
+    {
+      "type": 1,
+      "content": {
+        "json": "## App Service plan"
+      },
+      "name": "text - 10"
+    },
+    {
+      "type": 10,
+      "content": {
+        "chartId": "workbook981b88ed-3739-4172-939b-8a4a2ce97e11",
+        "version": "MetricsItem/2.0",
+        "size": 0,
+        "chartType": 2,
+        "resourceType": "microsoft.web/serverfarms",
+        "metricScope": 0,
+        "resourceIds": [
+          "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/example-rg/providers/Microsoft.Web/serverFarms/example-app"
+        ],
+        "timeContextFromParameter": "TimeRange",
+        "timeContext": {
+          "durationMs": 86400000
+        },
+        "metrics": [
+          {
+            "namespace": "microsoft.web/serverfarms",
+            "metric": "microsoft.web/serverfarms--TcpEstablished",
+            "aggregation": 4
+          }
+        ],
+        "title": "Plan TCP connections - includes production and staging",
+        "gridSettings": {
+          "rowLimit": 10000
+        }
+      },
+      "name": "metric - 9"
+    },
+    {
+      "type": 10,
+      "content": {
+        "chartId": "workbook68d85a9a-665a-4324-9c66-5a8c9d9dca4a",
+        "version": "MetricsItem/2.0",
+        "size": 0,
+        "chartType": 2,
+        "resourceType": "microsoft.web/serverfarms",
+        "metricScope": 0,
+        "resourceIds": [
+          "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/example-rg/providers/Microsoft.Web/serverFarms/example-app"
+        ],
+        "timeContextFromParameter": "TimeRange",
+        "timeContext": {
+          "durationMs": 86400000
+        },
+        "metrics": [
+          {
+            "namespace": "microsoft.web/serverfarms",
+            "metric": "microsoft.web/serverfarms--CpuPercentage",
+            "aggregation": 4
+          },
+          {
+            "namespace": "microsoft.web/serverfarms",
+            "metric": "microsoft.web/serverfarms--MemoryPercentage",
+            "aggregation": 4
+          }
+        ],
+        "title": "Plan utilization",
+        "gridSettings": {
+          "rowLimit": 10000
+        }
+      },
+      "name": "metric - 11"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "Resources\r\n| where type =~ \"microsoft.web/serverfarms\"\r\n| where resourceGroup =~ \"example-rg\"\r\n    and name == \"example-app\"\r\n| project\r\n    Plan = name,\r\n    Instances = toint(sku.capacity),\r\n    SKU = tostring(sku.name)",
+        "size": 0,
+        "title": "Current plan capacity",
+        "queryType": 1,
+        "resourceType": "microsoft.resourcegraph/resources",
+        "crossComponentResources": [
+          "/subscriptions/00000000-0000-0000-0000-000000000000"
+        ],
+        "visualization": "table"
+      },
+      "name": "query - 12"
+    },
+    {
+      "type": 1,
+      "content": {
+        "json": "## Azure SQL Database"
+      },
+      "name": "text - 13"
+    },
+    {
+      "type": 10,
+      "content": {
+        "chartId": "workbook9ca97ff5-3f65-4efc-8842-b2e00b4e9370",
+        "version": "MetricsItem/2.0",
+        "size": 0,
+        "chartType": 2,
+        "resourceType": "microsoft.sql/servers/databases",
+        "metricScope": 0,
+        "resourceIds": [
+          "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/example-rg/providers/Microsoft.Sql/servers/example-sql-server/databases/example-database"
+        ],
+        "timeContextFromParameter": "TimeRange",
+        "timeContext": {
+          "durationMs": 86400000
+        },
+        "metrics": [
+          {
+            "namespace": "microsoft.sql/servers/databases",
+            "metric": "microsoft.sql/servers/databases-Basic-cpu_percent",
+            "aggregation": 4
+          }
+        ],
+        "title": "Database compute",
+        "gridSettings": {
+          "rowLimit": 10000
+        }
+      },
+      "name": "metric - 14"
+    },
+    {
+      "type": 10,
+      "content": {
+        "chartId": "workbook956b9423-eb72-43c1-a9db-747cfff3875a",
+        "version": "MetricsItem/2.0",
+        "size": 0,
+        "chartType": 2,
+        "resourceType": "microsoft.sql/servers/databases",
+        "metricScope": 0,
+        "resourceIds": [
+          "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/example-rg/providers/Microsoft.Sql/servers/example-sql-server/databases/example-database"
+        ],
+        "timeContextFromParameter": "TimeRange",
+        "timeContext": {
+          "durationMs": 86400000
+        },
+        "metrics": [
+          {
+            "namespace": "microsoft.sql/servers/databases",
+            "metric": "microsoft.sql/servers/databases-Basic-physical_data_read_percent",
+            "aggregation": 4
+          },
+          {
+            "namespace": "microsoft.sql/servers/databases",
+            "metric": "microsoft.sql/servers/databases-Basic-log_write_percent",
+            "aggregation": 4
+          }
+        ],
+        "title": "Database IO",
+        "gridSettings": {
+          "rowLimit": 10000
+        }
+      },
+      "name": "metric - 15"
+    },
+    {
+      "type": 10,
+      "content": {
+        "chartId": "workbook05238ac7-bd96-4b89-95ff-72a56a61b59b",
+        "version": "MetricsItem/2.0",
+        "size": 0,
+        "chartType": 2,
+        "resourceType": "microsoft.sql/servers/databases",
+        "metricScope": 0,
+        "resourceIds": [
+          "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/example-rg/providers/Microsoft.Sql/servers/example-sql-server/databases/example-database"
+        ],
+        "timeContextFromParameter": "TimeRange",
+        "timeContext": {
+          "durationMs": 86400000
+        },
+        "metrics": [
+          {
+            "namespace": "microsoft.sql/servers/databases",
+            "metric": "microsoft.sql/servers/databases-Basic-storage_percent",
+            "aggregation": 3
+          }
+        ],
+        "title": "Storage utilization",
+        "gridSettings": {
+          "rowLimit": 10000
+        }
+      },
+      "name": "metric - 16"
+    },
+    {
+      "type": 10,
+      "content": {
+        "chartId": "workbook7aeb3c2b-215e-48cd-aab9-f7d964efe9a7",
+        "version": "MetricsItem/2.0",
+        "size": 0,
+        "chartType": 2,
+        "resourceType": "microsoft.sql/servers/databases",
+        "metricScope": 0,
+        "resourceIds": [
+          "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/example-rg/providers/Microsoft.Sql/servers/example-sql-server/databases/example-database"
+        ],
+        "timeContextFromParameter": "TimeRange",
+        "timeContext": {
+          "durationMs": 86400000
+        },
+        "metrics": [
+          {
+            "namespace": "microsoft.sql/servers/databases",
+            "metric": "microsoft.sql/servers/databases-Basic-storage",
+            "aggregation": 3
+          }
+        ],
+        "title": "Storage size",
+        "gridSettings": {
+          "rowLimit": 10000
+        }
+      },
+      "name": "metric - 17"
+    },
+    {
+      "type": 10,
+      "content": {
+        "chartId": "workbook94cad653-da5a-438a-8a30-a8b4eaac10f4",
+        "version": "MetricsItem/2.0",
+        "size": 0,
+        "chartType": 2,
+        "resourceType": "microsoft.sql/servers/databases",
+        "metricScope": 0,
+        "resourceIds": [
+          "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/example-rg/providers/Microsoft.Sql/servers/example-sql-server/databases/example-database"
+        ],
+        "timeContextFromParameter": "TimeRange",
+        "timeContext": {
+          "durationMs": 86400000
+        },
+        "metrics": [
+          {
+            "namespace": "microsoft.sql/servers/databases",
+            "metric": "microsoft.sql/servers/databases-Basic-connection_failed",
+            "aggregation": 1
+          },
+          {
+            "namespace": "microsoft.sql/servers/databases",
+            "metric": "microsoft.sql/servers/databases-Basic-connection_failed_user_error",
+            "aggregation": 1
+          }
+        ],
+        "title": "Failed connections",
+        "gridSettings": {
+          "rowLimit": 10000
+        }
+      },
+      "name": "metric - 18"
+    },
+    {
+      "type": 10,
+      "content": {
+        "chartId": "workbook8b2f7d47-e1ba-4c1e-a615-09b34f0a100a",
+        "version": "MetricsItem/2.0",
+        "size": 0,
+        "chartType": 2,
+        "resourceType": "microsoft.sql/servers/databases",
+        "metricScope": 0,
+        "resourceIds": [
+          "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/example-rg/providers/Microsoft.Sql/servers/example-sql-server/databases/example-database"
+        ],
+        "timeContextFromParameter": "TimeRange",
+        "timeContext": {
+          "durationMs": 86400000
+        },
+        "metrics": [
+          {
+            "namespace": "microsoft.sql/servers/databases",
+            "metric": "microsoft.sql/servers/databases-Basic-deadlock",
+            "aggregation": 1
+          }
+        ],
+        "title": "Deadlocks",
+        "gridSettings": {
+          "rowLimit": 10000
+        }
+      },
+      "name": "metric - 19"
+    },
+    {
+      "type": 1,
+      "content": {
+        "json": "## Traffic Manager"
+      },
+      "name": "text - 25"
+    },
+    {
+      "type": 10,
+      "content": {
+        "chartId": "workbook74a69e33-c762-41a3-ad27-5de057defe1e",
+        "version": "MetricsItem/2.0",
+        "size": 0,
+        "chartType": 2,
+        "resourceType": "microsoft.network/trafficmanagerprofiles",
+        "metricScope": 0,
+        "resourceIds": [
+          "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/example-rg/providers/Microsoft.Network/trafficmanagerprofiles/example-traffic-manager"
+        ],
+        "timeContextFromParameter": "TimeRange",
+        "timeContext": {
+          "durationMs": 86400000
+        },
+        "metrics": [
+          {
+            "namespace": "microsoft.network/trafficmanagerprofiles",
+            "metric": "microsoft.network/trafficmanagerprofiles--ProbeAgentCurrentEndpointStateByProfileResourceId",
+            "aggregation": 2,
+            "splitBy": [
+              "EndpointName"
+            ]
+          }
+        ],
+        "title": "Traffic Manager endpoint health",
+        "gridSettings": {
+          "rowLimit": 10000
+        }
+      },
+      "name": "metric - 20"
+    },
+    {
+      "type": 1,
+      "content": {
+        "json": "## Application Insights"
+      },
+      "name": "text - 26"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "AppRequests\r\n| where AppRoleName == \"{AppRole}\"\r\n| extend Weight = tolong(coalesce(ItemCount, 1))\r\n| summarize\r\n    Requests = sum(Weight),\r\n    Failures = sumif(Weight, Success == false)\r\n    by Name\r\n| where Failures > 0\r\n| extend FailureRatePct = round(100.0 * Failures / Requests, 2)\r\n| order by Failures desc",
+        "size": 0,
+        "title": "Failing routes",
+        "timeContextFromParameter": "TimeRange",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "crossComponentResources": [
+          "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/example-rg/providers/Microsoft.OperationalInsights/workspaces/example-app-logs"
+        ],
+        "visualization": "table"
+      },
+      "name": "query - 21"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "AppRequests\r\n| where AppRoleName == \"{AppRole}\"\r\n| extend Weight = tolong(coalesce(ItemCount, 1))\r\n| summarize\r\n    Requests = sum(Weight),\r\n    P50_ms = percentilew(DurationMs, Weight, 50),\r\n    P95_ms = percentilew(DurationMs, Weight, 95),\r\n    P99_ms = percentilew(DurationMs, Weight, 99)\r\n    by Name\r\n| order by P95_ms desc",
+        "size": 0,
+        "title": "Latency percentiles by route",
+        "timeContextFromParameter": "TimeRange",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "crossComponentResources": [
+          "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/example-rg/providers/Microsoft.OperationalInsights/workspaces/example-app-logs"
+        ],
+        "visualization": "table"
+      },
+      "name": "query - 22"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "AppExceptions\r\n| where AppRoleName == \"{AppRole}\"\r\n| project\r\n    TimeGenerated,\r\n    ExceptionType,\r\n    OuterMessage,\r\n    OperationId\r\n| top 50 by TimeGenerated desc",
+        "size": 0,
+        "title": "Recent exceptions",
+        "timeContextFromParameter": "TimeRange",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "crossComponentResources": [
+          "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/example-rg/providers/Microsoft.OperationalInsights/workspaces/example-app-logs"
+        ],
+        "visualization": "table"
+      },
+      "name": "query - 23"
+    }
+  ],
+  "fallbackResourceIds": [
+    "azure monitor"
+  ],
+  "$schema": "https://github.com/Microsoft/Application-Insights-Workbooks/blob/master/schema/workbook.json"
+}
