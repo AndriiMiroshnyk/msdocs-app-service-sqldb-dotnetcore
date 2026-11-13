@@ -28,6 +28,10 @@ See [infra/azure/README.md](infra/azure/README.md) for Terraform deployment inst
 
 See [Application deployment](infra/azure/README.md#application-deployment) for pipeline setup and verification.
 
+## Load testing
+
+See [load-tests/README.md](load-tests/README.md) for the workload, test configuration, and run guide.
+
 > [!IMPORTANT]
 > This tutorial sample is intentionally anonymous. All visitors share the same Todo list, so don't enter personal, confidential, or sensitive information.
 
