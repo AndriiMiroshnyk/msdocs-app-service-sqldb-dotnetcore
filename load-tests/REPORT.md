@@ -1,6 +1,6 @@
 # Load and stress test report
 
-Tests ran on November 10 and 12, 2026. Results were verified against Azure Load
+Tests ran on November 10, 12, and 13, 2026. Results were verified against Azure Load
 Testing, Azure Monitor metrics, and autoscale Activity Log events on November 13.
 All timestamps below are UTC.
 
@@ -104,6 +104,26 @@ underlying restriction; an Azure support request was opened for investigation.
 Although stress 8 had lower aggregate latency than stress 6, **this is not
 evidence of an autoscale benefit**. Their durations differ, and no second worker
 became available. Even the two 10-minute runs both failed the original target.
+
+## Pipeline verification
+
+The pipeline created a separate test, `todo-crud-smoke`, and ran
+`Todo workload - 20261113.1` against the production custom domain on November 13.
+The run's lifecycle interval was **11:36:03–11:40:47 UTC**. The configured workload
+was **5 users for 2 minutes on one engine**.
+
+| Metric | Result |
+| --- | ---: |
+| Total requests | 454 |
+| Creates / deletes | 53 / 53 |
+| Throughput | 3.55 requests/s |
+| p95 / p99 latency | 15 / 200 ms |
+| Error percentage | 0% |
+| Pass/fail criteria | All four passed |
+
+Azure recorded the run as **DONE / PASSED**, confirming execution of the small
+CI workload. This verifies pipeline integration, not a successful autoscale
+comparison at 300 users.
 
 ## Evidence and limitations
 
