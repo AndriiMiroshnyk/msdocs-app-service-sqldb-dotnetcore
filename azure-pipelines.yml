@@ -1,12 +1,11 @@
 # Azure DevOps CI/CD - ASP.NET Core + Azure SQL
 
-trigger:
-  batch: true
+trigger: none
+
+pr:
   branches:
     include:
-      - feature/terraform-infra
-
-pr: none
+      - main
 
 pool:
   name: 'Self-hosted Agents'
